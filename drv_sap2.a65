@@ -1,0 +1,290 @@
+
+	; Interrupt vectors
+	VDSLST=$0200
+	; there's more here
+	VVBLKI=$0222
+	
+	; I/O mirrors
+	SDMCTL=$022F
+	SDLSTL=$0230
+	
+	; C/GTIA ($D000)
+	; reads
+	M0PF  =$D000 ;r
+	M1PF  =$D001 ;r
+	M2PF  =$D002 ;r
+	M3PF  =$D003 ;r
+	H0PF  =$D004 ;r
+	H1PF  =$D005 ;r
+	H2PF  =$D006 ;r
+	H3PF  =$D007 ;r
+	M0PL  =$D008 ;r
+	M1PL  =$D009 ;r
+	M2PL  =$D00A ;r
+	M3PL  =$D00B ;r
+	P0PL  =$D00C ;r
+	P1PL  =$D00D ;r
+	P2PL  =$D00E ;r
+	P3PL  =$D00F ;r
+	TRIG0 =$D010 ;r
+	TRIG1 =$D011 ;r
+	TRIG2 =$D012 ;r
+	TRIG3 =$D013 ;r
+	PAL   =$D014 ;r
+	
+	; writes
+	HPOSP0=$D000 ;w
+	HPOSP1=$D001 ;w
+	HPOSP2=$D002 ;w
+	HPOSP3=$D003 ;w
+	MPOSP0=$D004 ;w
+	MPOSP1=$D005 ;w
+	MPOSP2=$D006 ;w
+	MPOSP3=$D007 ;w
+	SIZEP0=$D008 ;w
+	SIZEP1=$D009 ;w
+	SIZEP2=$D00A ;w
+	SIZEP3=$D00B ;w
+	SIZEM =$D00C ;w
+	GRAFP0=$D00D ;w
+	GRAFP1=$D00E ;w
+	GRAFP2=$D00F ;w
+	GRAFP3=$D010 ;w
+	GRAFM =$D011 ;w
+	COLPM0=$D012 ;w
+	COLPM1=$D013 ;w
+	COLPM2=$D014 ;w
+	COLPM3=$D015 ;w
+	COLPF0=$D016
+	COLPF1=$D017
+	COLPF2=$D018
+	COLPF3=$D019
+	COLBK =$D01A
+	PRIOR =$D01B
+	VDELAY=$D01C
+	GRACTL=$D01D
+	HITCLR=$D01E
+	CONSOL=$D01F
+	; D020-D0FF are mirrors of D000-D01F.
+	; D100-D1FF are apparently unusable.
+	
+	; POKEY ($D200)
+	; reads
+	POT0  =$D200
+	POT1  =$D201
+	POT2  =$D202
+	POT3  =$D203
+	POT4  =$D204
+	POT5  =$D205
+	POT6  =$D206
+	POT7  =$D207
+	ALLPOT=$D208
+	KBCODE=$D209
+	RANDOM=$D20A
+	SERIN =$D20D
+	IRQST =$D20E
+	SKSTAT=$D20F
+	
+	; writes
+	AUDF1 =$D200
+	AUDF2 =$D202
+	AUDF3 =$D204
+	AUDF4 =$D206
+	AUDC1 =$D201
+	AUDC2 =$D203
+	AUDC3 =$D205
+	AUDC4 =$D207
+	AUDCTL=$D208
+	STIMER=$D209
+	SKREST=$D20A
+	POTGO =$D20B
+	SEROUT=$D20D
+	IRQEN =$D20E
+	SKCTL =$D20F
+	
+	; D210-D2FF are mirrors of D200-D20F.
+	AUDF5 =$D210
+	AUDF6 =$D212
+	AUDF7 =$D214
+	AUDF8 =$D216
+	AUDC5 =$D211
+	AUDC6 =$D213
+	AUDC7 =$D215
+	AUDC8 =$D217
+	AUDCT2=$D218
+	SKCTL2=$D21F
+	
+	; PIA ($D300)
+	PORTA =$D300
+	PORTB =$D301
+	PACTL =$D302
+	PBCTL =$D303
+	; D304-D3FF are mirrors of D300-D303.
+	
+	; ANTIC ($D400)
+	DMACTL=$D400
+	DLISTL=$D402
+	HSCROL=$D404
+	VSCROL=$D405
+	PMBASE=$D407
+	CHBASE=$D409
+	WSYNC =$D40A
+	VCOUNT=$D40B
+	PENW  =$D40C
+	PENH  =$D40D
+	NMIEN =$D40E
+	NMIRES=$D40F ;w
+	NMIST =$D40F ;r
+	; D410-D41F are mirrors of D400-D40F.
+	
+	; OS vectors... come on Atari, you could have at least CONSIDERED allowing one to page the ROM out
+	SYSVBV=$E45F
+	XITVBV=$E462
+	
+	; runtime variables
+	
+	; player_it requirements
+	CURTICK = $D0
+	CURTPR  = $D1
+	CURORD  = $D2
+	BRKROW  = $D3
+	ROWREM  = $D4
+	CURBPM  = $D5
+	ACCBPM  = $D6
+	TICKREM = $D7
+	CURPAT  = $D8
+	BEGPAT  = $DA
+	
+	T_GPTR  = $CC
+	T_PERL  = $E0
+	T_PERH  = $E1
+	T_PDFL  = $E2
+	T_PDFH  = $E3
+	T_GEN1  = $E4
+	T_GEN2  = $E5
+	
+	CHNOTE  = $0600
+	CHVOL   = $0610
+	CHCMASK = $0611 ; SAP
+	
+	CHFLAGS = $0620 ; SAP
+	
+	PATMASK = $0620
+	PATNOTE = $0621
+	PATINS  = $0630
+	PATVOL  = $0631
+	PATEFT  = $0640
+	PATEFP  = $0641
+	
+	ORDLIST = $3000
+	SRCTPR  = $3100
+	SRCBPM  = $3101
+	
+	
+	*=$1FFA
+	.word $FFFF
+	.word start_main_seg
+	.word end_main_seg-1
+
+start_main_seg
+	jmp * ; TODO ? give a location to a proper playroutine ?
+	jmp vec_init
+	jmp vec_play
+
+vec_init
+	; chip setup
+	lda #$00
+	sta AUDCTL
+	sta AUDCT2
+	lda #$03
+	sta SKCTL
+	sta SKCTL2
+	
+	lda #%00000000
+	sta AUDCTL
+	sta AUDCT2
+	
+	; player setup
+	jsr player_it_init
+	
+	rts
+
+vec_play
+	jsr player_it_tick
+	
+	rts
+
+; X = channel bank
+callback_donote
+	rts
+
+calc_period_fromcallback_donote
+	; save X twice
+	txa
+	pha
+	pha
+	
+	lda CHFLAGS,x
+	pha
+	lda CHNOTE,x
+	ldy CHNOTE+1,x
+	tax
+	pla
+	
+	and #$01
+	beq +
+		; if zero, 8-bit
+		jsr calc_period_8
+		
+		; restore X once
+		pla
+		tax
+		
+		; adjust for second pokey
+		jsr pokey_adjust
+		
+		; write to the damn thing
+		lda T_PERL
+		sta AUDF1,x
+		
+		jmp ++
+	+
+		; if one, 16-bit
+		jsr calc_period_16
+		
+		; restore X once
+		pla
+		tax
+		
+		; adjust for second pokey
+		jsr pokey_adjust
+		
+		; write to the damn thing
+		lda T_PERL
+		sta AUDF1,x
+		lda T_PERH
+		sta AUDF2,x
+	+
+	
+	; restore X once
+	pla
+	tax
+	rts
+
+; Adjust X for actually writing to the second POKEY's registers.
+pokey_adjust
+	txa
+	cmp #$08
+	beq +
+		clc
+		adc #$08
+	+ rts
+
+.include "useful_stuff.a65"
+
+.include "player_it.a65"
+
+.include "tab_sap.a65"
+
+; END OF FILE
+end_main_seg

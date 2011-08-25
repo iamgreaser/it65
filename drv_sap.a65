@@ -1,0 +1,391 @@
+; IT65, the generic 6502 .it driver
+; by Ben "GreaseMonkey" Russell, 2011. Public domain.
+; SAP driver
+;
+; NOTE: this file must have STEREO defined either as 0 or 1 when you compile it.
+;
+; TODO ? allow running as a .xex file ?
+
+	.include "inc_a800.a65"
+	
+	; runtime variables
+	
+	; player_it requirements
+	CURTICK = $D0
+	CURTPR  = $D1
+	CURORD  = $D2
+	BRKROW  = $D3
+	ROWREM  = $D4
+	CURBPM  = $D5
+	ACCBPM  = $D6
+	TICKREM = $D7
+	CURPAT  = $D8
+	BEGPAT  = $DA
+	
+	T_GPTR  = $CC
+	T_PERL  = $E0
+	T_PERH  = $E1
+	T_PDFL  = $E2
+	T_PDFH  = $E3
+	T_GEN1  = $E4
+	T_GEN2  = $E5
+	
+	CHNOTE  = $0600
+	CHVOL   = $0610
+	CHFLAGS = $0611 ; SAP
+	
+	PATMASK = $0640
+	PATNOTE = $0641
+	PATINS  = $0660
+	PATVOL  = $0661
+	PATEFT  = $0680
+	PATEFP  = $0681
+	
+	ORDLIST = $4000
+	SRCTPR  = $4100
+	SRCBPM  = $4101
+	
+	ROOTBPM = 125
+	
+	*=$1FFA
+	.word $FFFF
+	.word start_main_seg
+	.word end_main_seg-1
+
+start_main_seg
+	jmp * ; TODO ? give a location to a proper playroutine ?
+	jmp vec_init
+	jmp vec_play
+
+vec_init
+	; chip setup
+	lda #$00
+	sta AUDCTL
+	.if STEREO
+		sta AUDCT2
+	.endif
+	lda #$03
+	sta SKCTL
+	.if STEREO
+		sta SKCTL2
+	.endif
+	
+	lda #%00000000
+	sta AUDCTL
+	.if STEREO
+		sta AUDCT2
+	.endif
+	
+	; player setup
+	jsr player_it_init
+	
+	rts
+
+vec_play
+	jsr player_it_tick
+	
+; RTS banking here...
+callback_dopan
+	rts
+
+.align $0080
+; X = channel bank
+callback_dovol
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+	; set volume
+	lda PATVOL,x
+	sta CHVOL,x
+	
+	; set note
+	jsr pokey_setc
+	
+	pla
+	tay
+	pla
+	tax
+	pla
+	rts
+
+.align $0080
+; X = channel bank
+callback_notecut
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+	; set volume to 0
+	lda #$00
+	sta CHVOL,x
+	
+	; set note
+	jsr pokey_setc
+	
+	pla
+	tay
+	pla
+	tax
+	pla
+	rts
+
+; X = channel bank
+callback_doins
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+	; calc flags
+	lda PATINS,x
+	clc
+	sbc #$01
+	and #$07
+	lsr
+	lsr
+	sta T_GEN1
+	lda CHFLAGS,x
+	and #$03
+	ora T_GEN1
+	; TEST: force flags
+	sta CHFLAGS,x
+	
+	; reset volume
+	lda #64
+	sta CHVOL,x
+	
+	; set note
+	jsr pokey_setc
+	
+	pla
+	tay
+	pla
+	tax
+	pla
+	rts
+
+.align $0080
+; X = channel bank
+callback_donote
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+	; save X
+	txa
+	pha
+	
+	; get correct period table
+	lda CHFLAGS,x
+	and #$1F ; XXX: safety measure, shouldn't be necessary
+	tax
+	lda ptselect,x ; low byte
+	sta T_GPTR
+	lda ptselect+1,x ; high byte
+	sta T_GPTR+1
+	
+	;lda #<pertab_s8_2
+	;sta T_GPTR
+	;lda #>pertab_s8_2
+	;sta T_GPTR+1
+	
+	
+	; restore X
+	pla
+	tax
+	
+	; calculate
+	jsr calc_period_fromcallback_donote
+	
+	; set note
+	jsr pokey_setc
+	
+	pla
+	tay
+	pla
+	tax
+	pla
+	rts
+
+.align $0080
+calc_period_fromcallback_donote
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+	; save X
+	txa
+	pha
+	
+	; get flags
+	lda CHFLAGS,x
+	
+	; get note
+	pha ; save A
+	lda CHNOTE,x
+	ldy CHNOTE+1,x
+	tax
+	pla ; restore A
+	
+	; we have our magic X/Y
+	
+	; read lower bit from flags
+	and #$01
+	bne +
+		; if zero, 8-bit
+		jsr calc_period_8
+		
+		; restore X once
+		pla
+		tax
+		
+		; adjust for second pokey
+		jsr pokey_adjust
+		
+		; write to the damn thing
+		lda T_PERL
+		sta AUDF1,x
+		
+		jmp ++
+	+
+		; if one, 16-bit
+		jsr calc_period_16
+		
+		; restore X once
+		pla
+		tax
+		
+		; adjust for second pokey
+		jsr pokey_adjust
+		
+		; write to the damn thing
+		lda T_PERL
+		sta AUDF1,x
+		lda T_PERH
+		sta AUDF2,x
+	+
+	
+	pla
+	tay
+	pla
+	tax
+	pla
+	rts
+
+.align $0080
+pokey_setc
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+	; save X
+	txa
+	pha
+	
+	; get waveform
+	lda CHFLAGS,x
+	; bits 4-2 << 3 => 7-5
+	asl
+	asl
+	asl
+	and #$E0
+	sta T_GEN1
+	
+	; get volume
+	lda CHVOL,x
+	tax
+	lda voltab,x
+	lda #7
+	and #$0F ; just in case
+	ora T_GEN1
+	sta T_GEN1
+	
+	; restore X
+	pla
+	tax
+	
+	jsr pokey_adjust
+	lda T_GEN1
+	;lda #$E6 ; testing...
+	sta AUDC1,x
+	
+	pla
+	tay
+	pla
+	tax
+	pla
+	rts
+
+; Adjust X for actually writing to the second POKEY's registers.
+pokey_adjust
+	; ASSERTION!!!
+	; (yes, this is hell.)
+	cpx #$00
+	beq +
+	cpx #$02
+	beq +
+	cpx #$04
+	beq +
+	cpx #$06
+	beq +
+	cpx #$08
+	beq +
+	cpx #$0A
+	beq +
+	cpx #$0C
+	beq +
+	cpx #$0E
+	beq +
+	
+	; ***********************
+	; * CRASH THE DRIVER!!! *
+	; ***********************
+	lda #$E7
+	sta AUDC1
+	sta AUDC5
+	pla
+	sta AUDF1
+	pla
+	sta AUDF5
+	jmp *
+	; end of forced crash
+	
+	+
+	.if STEREO
+		txa
+		;and #$FE ; TODO: get this to behave!
+		cmp #$08
+		bcs +
+			; don't readjust an already adjusted register!
+			cmp #$10
+			bcc +
+			
+			; do the adjustment
+			clc
+			adc #$08
+		+
+		tax
+	.endif
+	
+	rts
+
+.include "useful_stuff.a65"
+
+.include "player_it.a65"
+
+.include "tab_sap.a65"
+
+; END OF FILE
+end_main_seg

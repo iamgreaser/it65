@@ -1,0 +1,107 @@
+; IT65, the generic 6502 .it driver
+; by Ben "GreaseMonkey" Russell, 2011. Public domain.
+; Shared functions
+
+; trashes A, X, Y, T_GEN1
+;
+; GPTR = pointer to desired period table
+; Y = coarse note
+; X = fine note
+;
+; returns note in T_PERL
+calc_period_8
+	; clear upper period just in case
+	lda #$00
+	sta T_PERH
+	
+	; store period value
+	lda (T_GPTR),y
+	sta T_PERL
+	; calc difference and store that too
+	iny
+	clc
+	sbc (T_GPTR),y
+	sta T_PDFL
+	
+	; TODO: get the code to actually work before we risk it with this
+	;rts
+	
+	; store fine note in our lovely register
+	stx T_GEN1
+	
+	; loop through 6 times...
+	ldx #$06
+	-
+		; shift period delta right
+		lsr T_PDFL
+		
+		; shift fine note left, check if top bit was set
+		asl T_GEN1
+		bcc +
+			; if so, subtract the period delta
+			lda T_PERL
+			clc
+			sbc T_PDFL
+			sta T_PERL
+		+
+		dex
+		bne -
+	
+	; all good.
+	rts
+
+; trashes A, X, Y, T_GEN1
+;
+; GPTR = pointer to desired period table
+; Y = coarse note
+; X = fine note
+;
+; returns note in T_PERL/H
+calc_period_16
+	; store period low byte
+	lda (T_GPTR),y
+	sta T_PERL
+	
+	; calc difference low byte and store that too
+	iny
+	iny
+	clc
+	sbc (T_GPTR),y
+	sta T_PDFL
+	
+	; do the same to the high bytes except don't clear carry
+	dey
+	lda (T_GPTR),y
+	sta T_PERH
+	iny
+	iny
+	sbc (T_GPTR),y
+	sta T_PDFH
+	
+	; store fine note in our lovely register
+	stx T_GEN1
+	
+	; loop through 6 times...
+	ldx #$06
+	-
+		; shift period delta right
+		lsr T_PDFH
+		ror T_PDFL
+		
+		; shift fine note left, check if top bit was set
+		asl T_GEN1
+		bcc +
+			; if so, subtract the period delta
+			lda T_PERL
+			clc
+			sbc T_PDFL
+			sta T_PERL
+			lda T_PERH
+			sbc T_PDFH
+			sta T_PERH
+		+
+		dex
+		bne -
+	
+	; all good.
+	rts

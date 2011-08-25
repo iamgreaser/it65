@@ -1,0 +1,310 @@
+; IT65, the generic 6502 .it driver
+; by Ben "GreaseMonkey" Russell, 2011. Public domain.
+; The actual thing
+
+.align $0100
+.byte "it65/GM."
+player_it_init
+	; set speeds
+	lda SRCTPR
+	sta CURTPR
+	lda SRCBPM
+	sta CURBPM
+	
+	; set some other stuff
+	lda #$00
+	sta CURORD
+	sta BRKROW
+	sta ACCBPM
+	
+	lda #$01
+	sta TICKREM
+	
+	jsr player_it_nextpat
+	
+	rts
+
+player_it_tick
+	; add BPM to the accumulated BPM
+	lda ACCBPM
+	clc
+	adc CURBPM
+	sta ACCBPM
+	
+	; spaghetti code: jump to the check if the carry is clear.
+	bcc +
+	-
+		; do a player tick
+		jsr player_it_dotick
+		
+		; subtracterate
+		lda ACCBPM
+		clc
+		sbc #ROOTBPM
+		sta ACCBPM
+	+
+		; check: is ACCBPM >= ROOTBPM?
+		lda ACCBPM
+		cmp #ROOTBPM
+		bcc - ; if so, jump back.
+	rts
+
+player_it_dotick
+	; well yeah. as expected, this thing.
+	inc CURTICK
+	
+	dec TICKREM
+	bne ++
+		; reset tick
+		lda #$00
+		sta CURTICK
+		lda CURTPR
+		sta TICKREM
+		
+		; check if there are any rows left; if not, fetch another pattern
+		lda ROWREM
+		cmp #$00
+		bne +
+			; fetch!
+			jsr player_it_nextpat
+		+
+		
+		; load some stuff
+		jsr player_it_getrow
+		jsr player_it_parserow_0
+		jmp ++
+	+
+		jsr player_it_parserow_n
+	+
+	rts
+
+player_it_nextpat
+	; load order into X for now
+	lda CURORD
+	inc CURORD
+	asl
+	tax
+	
+	; load pattern into order list
+	lda ORDLIST,x
+	sta BEGPAT
+	clc
+	adc #$01
+	sta CURPAT
+	lda ORDLIST+1,x
+	sta BEGPAT+1
+	adc #$00
+	sta CURPAT+1
+	
+	; check if 0 -- SEPARATOR
+	cmp #$00
+	beq player_it_nextpat
+	
+	; check if 1 -- END
+	cmp #$01
+	bne +
+		lda #$00
+		sta CURORD
+		jmp player_it_nextpat
+	+
+	
+	; get the row count
+	ldy #$00
+	lda (BEGPAT),y
+	sta ROWREM
+	
+	; skip a bunch of rows if necessary
+	; TODO!!! check if this would go past the last row!!!
+	inc BRKROW
+	dec BRKROW
+	beq +
+	-
+		jsr player_it_getrow
+		dec BRKROW
+		bne -
+	+
+	
+	rts
+
+; trashes Y
+; increments word at CURPAT
+; returns in A
+player_it_getbyte
+	ldy #$00
+	lda (CURPAT),y
+	inc CURPAT
+	bne +
+		inc CURPAT+1
+	+
+	rts
+
+player_it_getrow
+	; ok, do the stuff you're good at
+	jsr player_it_getbyte
+	
+	; is it the end of the row?
+	cmp #$00
+	bne +
+		; yep
+		dec ROWREM
+		rts
+	+
+	
+	; subtract 1, shift left, lop off top bit and check
+	clc
+	sbc #$01
+	asl
+	tax
+	bcc +
+		; bit is set - load new mask
+		jsr player_it_getbyte
+		sta PATMASK,x
+	+
+	
+	; now deal to mask
+	lda PATMASK,x
+	sta T_GEN1
+	sta T_GEN2
+	
+	; keep effect?
+	asl T_GEN2
+	bcs +
+		; nope
+		lda #$00
+		sta PATEFT,x
+		sta PATEFP,x
+	+
+	
+	; keep volume?
+	asl T_GEN2
+	bcs +
+		; nope
+		lda #$FF
+		sta PATVOL,x
+	+
+	; keep instrument?
+	asl T_GEN2
+	bcs +
+		; nope
+		lda #$00
+		sta PATINS,x
+	+
+	; keep note?
+	asl T_GEN2
+	bcs +
+		; nope
+		lda #253
+		sta PATNOTE,x
+	+
+	
+	; now shift in the other dir
+	; new note?
+	lsr T_GEN1
+	bcc +
+		; yep
+		jsr player_it_getbyte
+		sta PATNOTE,x
+	+
+
+	; new instrument?
+	lsr T_GEN1
+	bcc +
+		; yep
+		jsr player_it_getbyte
+		sta PATINS,x
+	+
+
+	; new volume?
+	lsr T_GEN1
+	bcc +
+		; yep
+		jsr player_it_getbyte
+		sta PATVOL,x
+	+
+
+	; new effect?
+	lsr T_GEN1
+	bcc +
+		; yep
+		jsr player_it_getbyte
+		sta PATEFT,x
+		jsr player_it_getbyte
+		sta PATEFP,x
+	+
+	
+	; now loop again!
+	jmp player_it_getrow
+
+player_it_parserow_0
+	ldx #$00
+	-
+		; TODO lots of stuff
+		; this will eventually be replaced with something accurate
+		
+		; load instrument
+		
+		; --- EFFECTS ---
+		; ! TODO !
+		
+		; --- INSTRUMENTS ---
+		lda PATINS,x
+		cmp #$00 ; can't have a zero instrument number
+		beq +
+			jsr callback_doins
+		+
+		
+		; --- VOLUMES ---
+		lda PATINS,x
+		cmp #65
+		bcc +
+			; ok it's actually a volume
+			jsr callback_dovol
+			jmp js_player_it_parserow_vol
+		+
+		
+		js_player_it_parserow_vol
+		
+		; --- NOTES ---
+		txa
+		pha
+		
+		lda PATNOTE,x
+		
+		; actual note?
+		cmp #120
+		bcc +
+			; yes
+			sta CHNOTE+1,x
+			lda #$00
+			sta CHNOTE,x
+			
+			;jsr pokey_adjust
+			jsr callback_donote
+			
+			jmp js_player_it_parserow_note
+		+
+		; note cut?
+		cmp #254
+		bne +
+			; yes
+			jsr callback_notecut
+			
+			jmp js_player_it_parserow_note
+		+
+		; either note off (?TODO?) or note fade (?TODO?) or nothing
+		js_player_it_parserow_note
+		
+		; and loop
+		pla
+		tax
+		
+		inx
+		inx
+		cpx #$20
+		bne -
+	
+	rts
+
+player_it_parserow_n
+	; TODO effects 'r' us
+	rts
