@@ -40,6 +40,8 @@
 	PATVOL  = $0661
 	PATEFT  = $0680
 	PATEFP  = $0681
+	PATTCH  = $06A0
+	; free slot
 	
 	ORDLIST = $4000
 	SRCTPR  = $4100
@@ -57,6 +59,8 @@ start_main_seg
 	jmp vec_init
 	jmp vec_play
 
+; trashes A, X
+; may trash Y
 vec_init
 	; chip setup
 	lda #$00
@@ -76,8 +80,30 @@ vec_init
 		sta AUDCT2
 	.endif
 	
+	; SAP specific stuff
+	ldx #$0E
+	-
+		lda #$00
+		sta CHNOTE,x
+		sta CHVOL,x
+		sta CHFLAGS,x
+		dex
+		dex
+		bpl -
+	
 	; player setup
 	jsr player_it_init
+	
+	; DEBUG: hissssssssssssssssssss
+	lda #$81
+	sta AUDC1
+	sta AUDC5
+	sta AUDC2
+	sta AUDC6
+	sta AUDC3
+	sta AUDC7
+	sta AUDC4
+	sta AUDC8
 	
 	rts
 
@@ -88,8 +114,8 @@ vec_play
 callback_dopan
 	rts
 
-.align $0080
 ; X = channel bank
+; registers all preserved
 callback_dovol
 	pha
 	txa
@@ -111,8 +137,8 @@ callback_dovol
 	pla
 	rts
 
-.align $0080
 ; X = channel bank
+; registers all preserved
 callback_notecut
 	pha
 	txa
@@ -135,6 +161,7 @@ callback_notecut
 	rts
 
 ; X = channel bank
+; registers all preserved
 callback_doins
 	pha
 	txa
@@ -153,7 +180,6 @@ callback_doins
 	lda CHFLAGS,x
 	and #$03
 	ora T_GEN1
-	; TEST: force flags
 	sta CHFLAGS,x
 	
 	; reset volume
@@ -170,14 +196,18 @@ callback_doins
 	pla
 	rts
 
-.align $0080
 ; X = channel bank
+; registers all preserved
 callback_donote
 	pha
 	txa
 	pha
 	tya
 	pha
+	
+	;jsr debug_crash2
+	lda #64
+	sta CHVOL
 	
 	; save X
 	txa
@@ -215,7 +245,8 @@ callback_donote
 	pla
 	rts
 
-.align $0080
+; X = channel bank
+; registers all preserved
 calc_period_fromcallback_donote
 	pha
 	txa
@@ -282,7 +313,8 @@ calc_period_fromcallback_donote
 	pla
 	rts
 
-.align $0080
+; X = channel bank
+; registers all preserved
 pokey_setc
 	pha
 	txa
@@ -296,6 +328,7 @@ pokey_setc
 	
 	; get waveform
 	lda CHFLAGS,x
+	lda #%11100
 	; bits 4-2 << 3 => 7-5
 	asl
 	asl
@@ -317,8 +350,10 @@ pokey_setc
 	tax
 	
 	jsr pokey_adjust
+	
 	lda T_GEN1
-	;lda #$E6 ; testing...
+	;and #%00001111 ; TEST
+	;ora #%11100000 ; TEST
 	sta AUDC1,x
 	
 	pla
@@ -328,8 +363,9 @@ pokey_setc
 	pla
 	rts
 
-; Adjust X for actually writing to the second POKEY's registers.
-pokey_adjust
+; debug function
+; registers all preserved unless crashing
+debug_assert_xinrange
 	; ASSERTION!!!
 	; (yes, this is hell.)
 	cpx #$00
@@ -340,30 +376,64 @@ pokey_adjust
 	beq +
 	cpx #$06
 	beq +
-	cpx #$08
-	beq +
-	cpx #$0A
-	beq +
-	cpx #$0C
-	beq +
-	cpx #$0E
-	beq +
+	.if STEREO
+		cpx #$08
+		beq +
+		cpx #$0A
+		beq +
+		cpx #$0C
+		beq +
+		cpx #$0E
+		beq +
+	.endif
 	
 	; ***********************
 	; * CRASH THE DRIVER!!! *
 	; ***********************
-	lda #$E7
-	sta AUDC1
-	sta AUDC5
-	pla
-	sta AUDF1
-	pla
-	sta AUDF5
-	jmp *
-	; end of forced crash
-	
+	jmp debug_crash2
+	debug_crash
+		lda #$E7
+		sta AUDC1
+		sta AUDC5
+		pla
+		sta AUDF1
+		pla
+		sta AUDF5
+		jmp *
+		; end of forced crash
+		
 	+
+	rts
+
+; debug function - CAUSES DELIBERATE CRASH
+debug_crash2
+	lda #$E2
+	sta AUDC1
+	sta AUDC2
+	sta AUDC3
+	sta AUDC4
+	sta AUDC5
+	sta AUDC6
+	sta AUDC7
+	sta AUDC8
+	
+	sta AUDF1
+	sta AUDF2
+	sta AUDF3
+	sta AUDF4
+	sta AUDF5
+	sta AUDF6
+	sta AUDF7
+	sta AUDF8
+	
+	jmp *
+
+; registers all preserved
+; Adjust X for actually writing to the second POKEY's registers.
+pokey_adjust
+	jsr debug_assert_xinrange
 	.if STEREO
+		pha
 		txa
 		;and #$FE ; TODO: get this to behave!
 		cmp #$08
@@ -377,6 +447,7 @@ pokey_adjust
 			adc #$08
 		+
 		tax
+		pla
 	.endif
 	
 	rts

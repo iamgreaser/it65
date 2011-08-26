@@ -4,6 +4,8 @@
 
 .align $0100
 .byte "it65/GM."
+
+; trashes A
 player_it_init
 	; set speeds
 	lda SRCTPR
@@ -24,6 +26,7 @@ player_it_init
 	
 	rts
 
+; trashes A, Y (via func)
 player_it_tick
 	; add BPM to the accumulated BPM
 	lda ACCBPM
@@ -49,6 +52,7 @@ player_it_tick
 		bcc - ; if so, jump back.
 	rts
 
+; trashes A, X (via func), Y (via func)
 player_it_dotick
 	; well yeah. as expected, this thing.
 	inc CURTICK
@@ -78,6 +82,7 @@ player_it_dotick
 	+
 	rts
 
+; trashes A, X
 player_it_nextpat
 	; load order into X for now
 	lda CURORD
@@ -88,12 +93,9 @@ player_it_nextpat
 	; load pattern into order list
 	lda ORDLIST,x
 	sta BEGPAT
-	clc
-	adc #$01
 	sta CURPAT
 	lda ORDLIST+1,x
 	sta BEGPAT+1
-	adc #$00
 	sta CURPAT+1
 	
 	; check if 0 -- SEPARATOR
@@ -109,9 +111,7 @@ player_it_nextpat
 	+
 	
 	; get the row count
-	ldy #$00
-	lda (BEGPAT),y
-	sta ROWREM
+	jsr player_it_getbyte
 	
 	; skip a bunch of rows if necessary
 	; TODO!!! check if this would go past the last row!!!
@@ -138,8 +138,20 @@ player_it_getbyte
 	+
 	rts
 
+; trashes A, X, Y (via func)
 player_it_getrow
 	; ok, do the stuff you're good at
+	
+	; clear the pattern touch thing
+	ldx #$20-2
+	lda #$00
+	-
+		sta PATTCH,x
+		dex
+		dex
+		bpl -
+	
+	; load byte
 	jsr player_it_getbyte
 	
 	; is it the end of the row?
@@ -160,6 +172,9 @@ player_it_getrow
 		jsr player_it_getbyte
 		sta PATMASK,x
 	+
+	
+	; inform the driver that this channel has been touched
+	inc PATTCH,x
 	
 	; now deal to mask
 	lda PATMASK,x
@@ -235,16 +250,22 @@ player_it_getrow
 	; now loop again!
 	jmp player_it_getrow
 
+; trashes A, X
 player_it_parserow_0
 	ldx #$00
 	-
 		; TODO lots of stuff
 		; this will eventually be replaced with something accurate
 		
+		; if not touched, skip everything
+		lda PATTCH,x
+		cmp #$00
+		beq js_player_it_parserow_0
+		
 		; load instrument
 		
 		; --- EFFECTS ---
-		; ! TODO !
+		; ! TODO ! Will use a LUT once this is eventually touched on
 		
 		; --- INSTRUMENTS ---
 		lda PATINS,x
@@ -254,7 +275,7 @@ player_it_parserow_0
 		+
 		
 		; --- VOLUMES ---
-		lda PATINS,x
+		lda PATVOL,x
 		cmp #65
 		bcc +
 			; ok it's actually a volume
@@ -262,11 +283,11 @@ player_it_parserow_0
 			jmp js_player_it_parserow_vol
 		+
 		
+		; TODO: voleffects! (and maaaaaaybe pan)
+		
 		js_player_it_parserow_vol
 		
 		; --- NOTES ---
-		txa
-		pha
 		
 		lda PATNOTE,x
 		
@@ -278,7 +299,6 @@ player_it_parserow_0
 			lda #$00
 			sta CHNOTE,x
 			
-			;jsr pokey_adjust
 			jsr callback_donote
 			
 			jmp js_player_it_parserow_note
@@ -294,9 +314,9 @@ player_it_parserow_0
 		; either note off (?TODO?) or note fade (?TODO?) or nothing
 		js_player_it_parserow_note
 		
+		js_player_it_parserow_0
+		
 		; and loop
-		pla
-		tax
 		
 		inx
 		inx
@@ -305,6 +325,7 @@ player_it_parserow_0
 	
 	rts
 
+; will eventually trash A, X
 player_it_parserow_n
 	; TODO effects 'r' us
 	rts
