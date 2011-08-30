@@ -165,6 +165,7 @@ vec_init
 	-
 		lda #$00
 		sta CHNOTE,x
+		sta CHNOTE+1,x
 		sta CHVOL,x
 		sta CHFLAGS,x
 		dex
@@ -256,8 +257,8 @@ callback_doins
 	sec
 	sbc #$01
 	and #$07
-	lsr
-	lsr
+	asl ; shift left you egg
+	asl
 	sta T_GEN1
 	lda CHFLAGS,x
 	and #$03
@@ -287,7 +288,6 @@ callback_donote
 	tya
 	pha
 	
-	;jsr debug_crash2
 	lda #64
 	sta CHVOL
 	
@@ -305,9 +305,9 @@ callback_donote
 	lda ptselect+1,x ; high byte
 	sta T_GPTR+1
 	
-	;lda #<pertab_s8_2
+	;lda #<pertab_s8_15
 	;sta T_GPTR
-	;lda #>pertab_s8_2
+	;lda #>pertab_s8_15
 	;sta T_GPTR+1
 	
 	
@@ -346,17 +346,17 @@ calc_period_fromcallback_donote
 	
 	; get note
 	; goal: x (fine note) = CHNOTE[chan][0], y (coarse note) = CHNOTE[chan][1]
-	pha ; save A
-	lda CHNOTE,x
-	ldy CHNOTE+1,x
-	tax
-	pla ; restore A
+	pha             ; save A
+	lda CHNOTE,x    ; this'll go to X...
+	ldy CHNOTE+1,x  ; (get Y)
+	tax             ; ...here.
+	pla             ; restore A
 	
 	; we have our magic X/Y
 	
 	; read lower bit from flags
 	and #$01
-	bne +
+	;bne +
 		; if zero, 8-bit
 		jsr calc_period_8
 		
@@ -412,7 +412,6 @@ pokey_setc
 	
 	; get waveform
 	lda CHFLAGS,x
-	lda #%11100
 	; bits 4-2 << 3 => 7-5
 	asl
 	asl
@@ -424,7 +423,6 @@ pokey_setc
 	lda CHVOL,x
 	tax
 	lda voltab,x
-	lda #7
 	and #$0F ; just in case
 	ora T_GEN1
 	sta T_GEN1
@@ -473,17 +471,6 @@ debug_assert_xinrange
 	; * CRASH THE DRIVER!!! *
 	; ***********************
 	jmp debug_crash2
-	debug_crash
-		lda #$E7
-		sta AUDC1
-		sta AUDC5
-		pla
-		sta AUDF1
-		pla
-		sta AUDF5
-		jmp *
-		; end of forced crash
-		
 	+
 	rts
 

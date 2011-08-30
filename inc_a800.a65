@@ -107,7 +107,9 @@
 	IRQEN =$D20E
 	SKCTL =$D20F
 	
-	; D210-D2FF are mirrors of D200-D20F.
+	; MONO:   D210-D2FF are mirrors of D200-D20F.
+	; STEREO: D210-D21F are the second POKEY.
+	;         D220-D2FF are mirrors of D200-D21F.
 	AUDF5 =$D210
 	AUDF6 =$D212
 	AUDF7 =$D214

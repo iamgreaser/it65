@@ -24,7 +24,7 @@ calc_period_8
 	sta T_PDFL
 	
 	; TODO: get the code to actually work before we risk it with this
-	;rts
+	rts ; NOTE: I think it actually DOES work, but I'll RTS here anyway.
 	
 	; store fine note in our lovely register
 	stx T_GEN1

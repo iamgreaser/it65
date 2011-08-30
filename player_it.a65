@@ -344,7 +344,7 @@ player_it_parserow_0
 		
 		; actual note?
 		cmp #120
-		bcc +
+		bcs +
 			; yes
 			sta CHNOTE+1,x
 			lda #$00
