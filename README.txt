@@ -1,6 +1,6 @@
-
-! WARNING ! THIS DRIVER DOESN'T ACTUALLY WORK YET !
-! From what I gather, it plays through the patterns fine, but the notes themselves aren't playing properly.
+!
+! WARNING! This driver is still buggy!
+! (On the plus side, at least it runs through the patterns correctly.)
 ! 
 
 Notes:

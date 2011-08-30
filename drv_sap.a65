@@ -33,7 +33,6 @@
 	CHNOTE  = $0600 ; 16
 	CHVOL   = $0610 ; 8
 	CHFLAGS = $0611 ; 8 SAP
-	CHPER   = $0620 ; 8 SAP
 	
 	PATMASK = $0640
 	PATNOTE = $0641
@@ -176,23 +175,22 @@ vec_init
 	jsr player_it_init
 	
 	; DEBUG: hissssssssssssssssssss
-	lda #$81
-	sta AUDC1
-	sta AUDC2
-	sta AUDC3
-	sta AUDC4
-	.if STEREO
-		sta AUDC5
-		sta AUDC6
-		sta AUDC7
-		sta AUDC8
-	.endif
+	;lda #$81
+	;sta AUDC1
+	;sta AUDC2
+	;sta AUDC3
+	;sta AUDC4
+	;.if STEREO
+	;	sta AUDC5
+	;	sta AUDC6
+	;	sta AUDC7
+	;	sta AUDC8
+	;.endif
 	
 	rts
 
 vec_play
 	jsr player_it_tick
-	
 ; RTS banking here...
 callback_dopan
 	rts
@@ -255,13 +253,14 @@ callback_doins
 	; calc flags
 	lda PATINS,x
 	sec
-	sbc #$01
-	and #$07
+	sbc #$01 ; 1-8 -> 0-7
+	and #$07 ; just in case
 	asl ; shift left you egg
 	asl
 	sta T_GEN1
 	lda CHFLAGS,x
 	and #$03
+	lda #$00
 	ora T_GEN1
 	sta CHFLAGS,x
 	
@@ -289,7 +288,7 @@ callback_donote
 	pha
 	
 	lda #64
-	sta CHVOL
+	sta CHVOL,x
 	
 	; save X
 	txa
@@ -356,7 +355,7 @@ calc_period_fromcallback_donote
 	
 	; read lower bit from flags
 	and #$01
-	;bne +
+	bne +
 		; if zero, 8-bit
 		jsr calc_period_8
 		
@@ -374,6 +373,10 @@ calc_period_fromcallback_donote
 		jmp ++
 	+
 		; if one, 16-bit
+		; note: remember to shift Y left first!
+		tya
+		asl
+		tay
 		jsr calc_period_16
 		
 		; restore X once
@@ -504,12 +507,11 @@ pokey_adjust
 	.if STEREO
 		pha
 		txa
-		;and #$FE ; TODO: get this to behave!
 		cmp #$08
-		bcs +
+		bcc +
 			; don't readjust an already adjusted register!
 			cmp #$10
-			bcc +
+			bcs +
 			
 			; do the adjustment
 			clc
@@ -518,6 +520,7 @@ pokey_adjust
 		tax
 		pla
 	.endif
+	
 	
 	rts
 

@@ -35,6 +35,7 @@ player_it_tick
 	sta ACCBPM
 	
 	; spaghetti code: jump to the check if the carry is clear.
+	; TODO: fix this code!!! (it's backwards)
 	bcc +
 	-
 		; do a player tick
@@ -203,7 +204,7 @@ lp_player_it_getrow
 	+
 	
 	txa
-	and #$7E
+	and #$FE
 	cmp #$20
 	bcc +
 		jsr debug_crash2
