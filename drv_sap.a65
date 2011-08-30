@@ -11,28 +11,29 @@
 	; runtime variables
 	
 	; player_it requirements
-	CURTICK = $D0
-	CURTPR  = $D1
-	CURORD  = $D2
-	BRKROW  = $D3
-	ROWREM  = $D4
-	CURBPM  = $D5
-	ACCBPM  = $D6
-	TICKREM = $D7
-	CURPAT  = $D8
-	BEGPAT  = $DA
+	CURTICK = $06FF
+	CURTPR  = $06FE
+	CURORD  = $06FD
+	BRKROW  = $06FC
+	ROWREM  = $06FB
+	CURBPM  = $06FA
+	ACCBPM  = $06F9
+	TICKREM = $06F8
+	CURPAT  = $CB
+	BEGPAT  = $CD
 	
-	T_GPTR  = $CC
-	T_PERL  = $E0
-	T_PERH  = $E1
-	T_PDFL  = $E2
-	T_PDFH  = $E3
-	T_GEN1  = $E4
-	T_GEN2  = $E5
+	T_GPTR  = $D0
+	T_PERL  = $06E0
+	T_PERH  = $06E1
+	T_PDFL  = $06E2
+	T_PDFH  = $06E3
+	T_GEN1  = $06E4
+	T_GEN2  = $06E5
 	
-	CHNOTE  = $0600
-	CHVOL   = $0610
-	CHFLAGS = $0611 ; SAP
+	CHNOTE  = $0600 ; 16
+	CHVOL   = $0610 ; 8
+	CHFLAGS = $0611 ; 8 SAP
+	CHPER   = $0620 ; 8 SAP
 	
 	PATMASK = $0640
 	PATNOTE = $0641
@@ -55,9 +56,76 @@
 	.word end_main_seg-1
 
 start_main_seg
-	jmp * ; TODO ? give a location to a proper playroutine ?
+	jmp vec_boot
 	jmp vec_init
 	jmp vec_play
+
+; playroutine
+vec_boot
+	; initialise
+	jsr vec_init
+	
+	; set up space for screen - screw DOS!
+	lda #<display_list
+	sta $230
+	lda #>display_list
+	sta $231
+	
+	; kill some time
+	ldx #$00
+	ldy #$00
+	-
+		dex
+		bne -
+		dey
+		bne -
+	
+	; install interrupt
+	ldy #<vec_interrupt
+	ldx #>vec_interrupt
+	lda #$07
+	jsr SETVBV
+	
+	; that's all folks
+	jmp *
+
+display_list
+	.byte $70,$70,$70 ; 24 blanks
+	.byte $47
+	.word $0800
+	.byte $07,$07,$07,$07
+	.byte $07,$07,$07,$07,$07
+	.byte $41
+	.word display_list
+
+vec_interrupt
+	sei
+	php
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+	; disable interrupts
+	lda #$40
+	sta NMIEN
+	
+	; call our routine
+	jsr vec_play
+	
+	; re enable interrupts
+	lda #$C0
+	sta NMIEN
+	
+	pla
+	tay
+	pla
+	tax
+	pla
+	plp
+	cli
+	jmp XITVBV
 
 ; trashes A, X
 ; may trash Y
@@ -97,13 +165,15 @@ vec_init
 	; DEBUG: hissssssssssssssssssss
 	lda #$81
 	sta AUDC1
-	sta AUDC5
 	sta AUDC2
-	sta AUDC6
 	sta AUDC3
-	sta AUDC7
 	sta AUDC4
-	sta AUDC8
+	.if STEREO
+		sta AUDC5
+		sta AUDC6
+		sta AUDC7
+		sta AUDC8
+	.endif
 	
 	rts
 
@@ -216,6 +286,7 @@ callback_donote
 	; get correct period table
 	lda CHFLAGS,x
 	and #$1F ; XXX: safety measure, shouldn't be necessary
+	asl ; shift left you egg
 	tax
 	lda ptselect,x ; low byte
 	sta T_GPTR
@@ -262,6 +333,7 @@ calc_period_fromcallback_donote
 	lda CHFLAGS,x
 	
 	; get note
+	; goal: x (fine note) = CHNOTE[chan][0], y (coarse note) = CHNOTE[chan][1]
 	pha ; save A
 	lda CHNOTE,x
 	ldy CHNOTE+1,x
@@ -352,8 +424,6 @@ pokey_setc
 	jsr pokey_adjust
 	
 	lda T_GEN1
-	;and #%00001111 ; TEST
-	;ora #%11100000 ; TEST
 	sta AUDC1,x
 	
 	pla

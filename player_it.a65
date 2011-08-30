@@ -112,6 +112,7 @@ player_it_nextpat
 	
 	; get the row count
 	jsr player_it_getbyte
+	sta ROWREM
 	
 	; skip a bunch of rows if necessary
 	; TODO!!! check if this would go past the last row!!!
@@ -151,6 +152,8 @@ player_it_getrow
 		dex
 		bpl -
 	
+lp_player_it_getrow
+	
 	; load byte
 	jsr player_it_getbyte
 	
@@ -166,15 +169,33 @@ player_it_getrow
 	clc
 	sbc #$01
 	asl
+	
+	;and #$0E ; TODO: FIX THIS CRAP
 	tax
 	bcc +
 		; bit is set - load new mask
 		jsr player_it_getbyte
 		sta PATMASK,x
+		clc
+		adc #$01
+		sta $0800,x
+		clc
+		sbc #$01
 	+
 	
+	txa
+	and #$FE
+	cmp #$20
+	bcc +
+		;jsr debug_crash2
+	+
+	
+	; FIXME: remove this check once it's working (this WILL fail if channels 9-16 are used!)
+	;jsr debug_assert_xinrange
+	
 	; inform the driver that this channel has been touched
-	inc PATTCH,x
+	lda #$01
+	sta PATTCH,x
 	
 	; now deal to mask
 	lda PATMASK,x
@@ -188,6 +209,9 @@ player_it_getrow
 		lda #$00
 		sta PATEFT,x
 		sta PATEFP,x
+		sta $0800+100,x
+		sta $0800+80,x
+		
 	+
 	
 	; keep volume?
@@ -196,6 +220,7 @@ player_it_getrow
 		; nope
 		lda #$FF
 		sta PATVOL,x
+		sta $0800+60,x
 	+
 	; keep instrument?
 	asl T_GEN2
@@ -203,6 +228,7 @@ player_it_getrow
 		; nope
 		lda #$00
 		sta PATINS,x
+		sta $0800+40,x
 	+
 	; keep note?
 	asl T_GEN2
@@ -210,15 +236,17 @@ player_it_getrow
 		; nope
 		lda #253
 		sta PATNOTE,x
+		sta $0800+20,x
 	+
 	
-	; now shift in the other dir
+	; now shift in the other dir with the other copy
 	; new note?
 	lsr T_GEN1
 	bcc +
 		; yep
 		jsr player_it_getbyte
 		sta PATNOTE,x
+		sta $0800+20,x
 	+
 
 	; new instrument?
@@ -227,6 +255,7 @@ player_it_getrow
 		; yep
 		jsr player_it_getbyte
 		sta PATINS,x
+		sta $0800+40,x
 	+
 
 	; new volume?
@@ -235,6 +264,7 @@ player_it_getrow
 		; yep
 		jsr player_it_getbyte
 		sta PATVOL,x
+		sta $0800+60,x
 	+
 
 	; new effect?
@@ -243,12 +273,14 @@ player_it_getrow
 		; yep
 		jsr player_it_getbyte
 		sta PATEFT,x
+		sta $0800+80,x
 		jsr player_it_getbyte
 		sta PATEFP,x
+		sta $0800+100,x
 	+
 	
 	; now loop again!
-	jmp player_it_getrow
+	jmp lp_player_it_getrow
 
 ; trashes A, X
 player_it_parserow_0
@@ -271,6 +303,7 @@ player_it_parserow_0
 		lda PATINS,x
 		cmp #$00 ; can't have a zero instrument number
 		beq +
+			jsr debug_assert_xinrange
 			jsr callback_doins
 		+
 		
@@ -279,6 +312,7 @@ player_it_parserow_0
 		cmp #65
 		bcc +
 			; ok it's actually a volume
+			jsr debug_assert_xinrange
 			jsr callback_dovol
 			jmp js_player_it_parserow_vol
 		+
@@ -299,6 +333,7 @@ player_it_parserow_0
 			lda #$00
 			sta CHNOTE,x
 			
+			jsr debug_assert_xinrange
 			jsr callback_donote
 			
 			jmp js_player_it_parserow_note
@@ -307,6 +342,7 @@ player_it_parserow_0
 		cmp #254
 		bne +
 			; yes
+			jsr debug_assert_xinrange
 			jsr callback_notecut
 			
 			jmp js_player_it_parserow_note

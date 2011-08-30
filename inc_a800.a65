@@ -7,6 +7,8 @@
 	; there's more here
 	VVBLKI=$0222
 	
+	SETVBV=$E45C
+	
 	; I/O mirrors
 	SDMCTL=$022F
 	SDLSTL=$0230

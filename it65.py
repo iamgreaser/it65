@@ -17,7 +17,7 @@ args = sys.argv[1:]
 while len(args) > 0 and args[0].startswith("-"):
 	a = args.pop(0).lower()
 	
-	if a in ["-sap"]:
+	if a in ["-sap", "-xex"]:
 		if drvtype != None:
 			raise Exception("cannot have more than one driver specified")
 		
@@ -35,6 +35,7 @@ if len(args) < 2:
 
 where -type is one of the following:
 	-sap - output as an Atari 800 .sap file
+	-xex - output as an Atari 800 .xex file
 
 planned -type things:
 	-nsf - output as a Nintendo Entertainment System .nsf file
@@ -103,24 +104,26 @@ print "Name: %s" % repr(dmp_name)
 print "Author: %s" % repr(dmp_author)
 print "Date: %s" % repr(dmp_date)
 
-if drvtype in ["-sap", "-sapx2"]:
+if drvtype in ["-sap", "-xex"]:
 	driver = "drv_sapx2.xex" if stereo else "drv_sap.xex"
+	sap = (drvtype == "-sap")
 	
 	# open target .sap
 	fp = open(args[1],"wb")
 	
 	# write header
-	fp.write("SAP\r\n")
-	fp.write("AUTHOR \"%s\"\r\n" % dmp_author.replace('"',"'"))
-	fp.write("NAME \"%s\"\r\n" % dmp_name.replace('"',"'"))
-	fp.write("DATE \"%s\"\r\n" % dmp_date)
-	fp.write("TYPE B\r\n")
-	if stereo:
-		fp.write("STEREO\r\n")
-	else:
-		print "You might be missing some of the benefits that stereo can provide."
-	fp.write("INIT 2003\r\n")
-	fp.write("PLAYER 2006\r\n")
+	if sap:
+		fp.write("SAP\r\n")
+		fp.write("AUTHOR \"%s\"\r\n" % dmp_author.replace('"',"'"))
+		fp.write("NAME \"%s\"\r\n" % dmp_name.replace('"',"'"))
+		fp.write("DATE \"%s\"\r\n" % dmp_date)
+		fp.write("TYPE B\r\n")
+		if stereo:
+			fp.write("STEREO\r\n")
+		else:
+			print "You might be missing some of the benefits that stereo can provide."
+		fp.write("INIT 2003\r\n")
+		fp.write("PLAYER 2006\r\n")
 	
 	# write driver in
 	rdfp = open(driver, "rb")

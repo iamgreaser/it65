@@ -1,5 +1,5 @@
 
-all: drv_sap.xex sappack.it saptest.sap
+all: drv_sap.xex sappack.it saptest.sap saptest.xex
 
 sappack.it: sappackgen.py
 	python2 sappackgen.py
@@ -12,3 +12,7 @@ drv_sapx2.xex: drv_sap.a65 useful_stuff.a65 tab_sap.a65 player_it.a65 inc_a800.a
 
 saptest.sap: drv_sap.xex drv_sapx2.xex it65.py saptest.it
 	python2 it65.py -sap -stereo -a "Ben Russell (GreaseMonkey)" saptest.it saptest.sap
+
+saptest.xex: drv_sap.xex drv_sapx2.xex it65.py saptest.it
+	python2 it65.py -xex -stereo -a "Ben Russell (GreaseMonkey)" saptest.it saptest.xex
+
