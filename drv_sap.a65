@@ -62,22 +62,27 @@ start_main_seg
 
 ; playroutine
 vec_boot
-	; initialise
-	jsr vec_init
-	
 	; set up space for screen - screw DOS!
 	lda #<display_list
 	sta $230
 	lda #>display_list
 	sta $231
 	
+	; initialise
+	jsr vec_init
+	
+	
 	; kill some time
 	ldx #$00
 	ldy #$00
+	lda #$03
 	-
 		dex
 		bne -
 		dey
+		bne -
+		sec
+		sbc #$01
 		bne -
 	
 	; install interrupt
@@ -91,10 +96,17 @@ vec_boot
 
 display_list
 	.byte $70,$70,$70 ; 24 blanks
-	.byte $47
+	;.byte $47
+	;.word $0800
+	;.byte $07,$07,$07,$07
+	;.byte $07,$07,$07,$07,$07
+	.byte $42
 	.word $0800
-	.byte $07,$07,$07,$07
-	.byte $07,$07,$07,$07,$07
+	.byte $02,$02,$02,$02
+	.byte $02,$02,$02,$02,$02
+	.byte $02,$02,$02,$02,$02
+	.byte $02,$02,$02,$02,$02
+	.byte $02,$02,$02,$02,$02
 	.byte $41
 	.word display_list
 
@@ -241,7 +253,7 @@ callback_doins
 	
 	; calc flags
 	lda PATINS,x
-	clc
+	sec
 	sbc #$01
 	and #$07
 	lsr

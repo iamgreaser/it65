@@ -42,7 +42,7 @@ player_it_tick
 		
 		; subtracterate
 		lda ACCBPM
-		clc
+		sec
 		sbc #ROOTBPM
 		sta ACCBPM
 	+
@@ -131,12 +131,36 @@ player_it_nextpat
 ; increments word at CURPAT
 ; returns in A
 player_it_getbyte
+	; this is complete bullshit.
 	ldy #$00
 	lda (CURPAT),y
+	
+	pha
+	
 	inc CURPAT
 	bne +
 		inc CURPAT+1
 	+
+	
+	pha
+	txa
+	pha
+	
+	ldx CURPAT
+	sta $0A00,x
+	
+	lda CURPAT
+	sta $09FE
+	lda CURPAT+1
+	sta $09FF
+	
+	
+	pla
+	tax
+	pla
+	
+	pla
+	
 	rts
 
 ; trashes A, X, Y (via func)
@@ -166,32 +190,24 @@ lp_player_it_getrow
 	+
 	
 	; subtract 1, shift left, lop off top bit and check
-	clc
+	sec
 	sbc #$01
 	asl
 	
-	;and #$0E ; TODO: FIX THIS CRAP
 	tax
 	bcc +
 		; bit is set - load new mask
 		jsr player_it_getbyte
 		sta PATMASK,x
-		clc
-		adc #$01
 		sta $0800,x
-		clc
-		sbc #$01
 	+
 	
 	txa
-	and #$FE
+	and #$7E
 	cmp #$20
 	bcc +
-		;jsr debug_crash2
+		jsr debug_crash2
 	+
-	
-	; FIXME: remove this check once it's working (this WILL fail if channels 9-16 are used!)
-	;jsr debug_assert_xinrange
 	
 	; inform the driver that this channel has been touched
 	lda #$01
@@ -199,6 +215,7 @@ lp_player_it_getrow
 	
 	; now deal to mask
 	lda PATMASK,x
+	sta $0800,x
 	sta T_GEN1
 	sta T_GEN2
 	
@@ -209,8 +226,8 @@ lp_player_it_getrow
 		lda #$00
 		sta PATEFT,x
 		sta PATEFP,x
-		sta $0800+100,x
-		sta $0800+80,x
+		sta $0800+200,x
+		sta $0800+160,x
 		
 	+
 	
@@ -220,7 +237,7 @@ lp_player_it_getrow
 		; nope
 		lda #$FF
 		sta PATVOL,x
-		sta $0800+60,x
+		sta $0800+120,x
 	+
 	; keep instrument?
 	asl T_GEN2
@@ -228,7 +245,7 @@ lp_player_it_getrow
 		; nope
 		lda #$00
 		sta PATINS,x
-		sta $0800+40,x
+		sta $0800+80,x
 	+
 	; keep note?
 	asl T_GEN2
@@ -236,7 +253,7 @@ lp_player_it_getrow
 		; nope
 		lda #253
 		sta PATNOTE,x
-		sta $0800+20,x
+		sta $0800+40,x
 	+
 	
 	; now shift in the other dir with the other copy
@@ -246,7 +263,7 @@ lp_player_it_getrow
 		; yep
 		jsr player_it_getbyte
 		sta PATNOTE,x
-		sta $0800+20,x
+		sta $0800+40,x
 	+
 
 	; new instrument?
@@ -255,7 +272,7 @@ lp_player_it_getrow
 		; yep
 		jsr player_it_getbyte
 		sta PATINS,x
-		sta $0800+40,x
+		sta $0800+80,x
 	+
 
 	; new volume?
@@ -264,7 +281,7 @@ lp_player_it_getrow
 		; yep
 		jsr player_it_getbyte
 		sta PATVOL,x
-		sta $0800+60,x
+		sta $0800+120,x
 	+
 
 	; new effect?
@@ -273,10 +290,10 @@ lp_player_it_getrow
 		; yep
 		jsr player_it_getbyte
 		sta PATEFT,x
-		sta $0800+80,x
+		sta $0800+160,x
 		jsr player_it_getbyte
 		sta PATEFP,x
-		sta $0800+100,x
+		sta $0800+200,x
 	+
 	
 	; now loop again!
